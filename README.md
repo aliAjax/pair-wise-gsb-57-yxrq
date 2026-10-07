@@ -11,8 +11,11 @@
 - 支持任务开始、完成和阻断，冲突逐项复核，延期必须填写原因。
 - 截止时间前关闭必须记录提前关闭理由，未完成任务或存在冲突时服务端拒绝关闭。
 - 汇总登记、核验、分派、证据、冲突、延期和关闭审计，导出脱敏处理包。
+- 合作方离线回执批次对账：按「请求编号 + 系统」定位执行任务；同一回执再次导入沿用原结果，不重复生成证据、审计或延期。
+- 两个窗口同时提交同一批次时先到者写入、后到者整批进入复核；回执与既有执行结果或任务对象不一致时列出两边差异，由人工选择保留或采用，不拿新回执覆盖旧记录（旧证据仅标记替代、保留留痕）。
+- 批次写入失败保留完成部分，断点重试从下一行恢复；请求详情、总览和脱敏处理包展示同一批的跨批合并结果。
 
-tRPC 路由使用 Zod 校验操作输入；TanStack Query 管理服务数据；Zustand 管理工作区筛选状态；每次成功操作都会把完整工作区写入浏览器 `localStorage`。
+tRPC 路由使用 Zod 校验操作输入；TanStack Query 管理服务数据；Zustand 管理工作区筛选状态；每次成功操作都会把完整工作区写入浏览器 `localStorage`。回执对账还会监听其他窗口的写入，并以每个标签页独立的会话标识模拟并发先到/后到判定。
 
 ## 运行
 
@@ -30,16 +33,26 @@ npm run build
 npm run start
 ```
 
+## 回执批次对账验证
+
+```bash
+npx tsc -p scripts/tsconfig.verify.json
+node -e "const M=require('node:module'),p=require('node:path');const o=M._resolveFilename;M._resolveFilename=function(r,...a){if(r.startsWith('@/'))r=p.resolve(process.cwd(),'.verify-build','src',r.slice(2));return o.call(this,r,...a)};require('./.verify-build/scripts/receiptVerify.js')"
+```
+
+验证覆盖：回执按系统任务匹配、同批重复导入幂等、跨窗口并发复核、既有结果差异逐项人工选择、写入失败断点重试、未匹配/前置条件复核、跨批重复指纹沿用原结果。
+
 ## 目录
 
 ```text
 src/
   app/          Next App Router 页面与 tRPC API Handler
   components/   应用外壳、页面头、状态标签
-  features/     总览、请求列表、请求详情、复核、系统、审计
-  lib/          Zod Schema、tRPC 客户端、TanStack Query Hooks、本地存储
+  features/     总览、请求列表、请求详情、回执批次对账、复核、系统、审计
+  lib/          Zod Schema、tRPC 客户端、TanStack Query Hooks、本地存储、窗口会话标识
   server/       tRPC 服务路由
-  services/     流程模板和履约业务规则
+  services/     流程模板、履约业务规则、回执批次对账
   stores/       Zustand 工作区状态
   types/        领域类型
+scripts/        回执对账服务层逻辑验证脚本
 ```

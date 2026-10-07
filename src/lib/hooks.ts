@@ -30,17 +30,33 @@ export function useWorkspaceQuery() {
     if (query.data) saveWorkspace(query.data)
   }, [query.data])
 
+  // 另一窗口写入 localStorage 后同步到本窗口，保证并发提交能看到先到者的批次。
+  useEffect(() => {
+    function onStorage(event: StorageEvent) {
+      if (event.key !== 'privacy-rights-workbench-v1' || !event.newValue) return
+      try {
+        queryClient.setQueryData(workspaceQueryKey, JSON.parse(event.newValue))
+      } catch {
+        // 忽略其他窗口写入中的中间态
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [queryClient])
+
   return query
 }
 
 function useWorkspaceMutation<TInput>(
   perform: (input: TInput, state: WorkspaceState) => Promise<WorkspaceState>,
+  options?: { fresh?: boolean },
 ): UseMutationResult<WorkspaceState, Error, TInput> {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (input: TInput) => {
-      const state =
-        queryClient.getQueryData<WorkspaceState>(workspaceQueryKey) ?? loadWorkspace()
+      const state = options?.fresh
+        ? loadWorkspace() ?? queryClient.getQueryData<WorkspaceState>(workspaceQueryKey)
+        : queryClient.getQueryData<WorkspaceState>(workspaceQueryKey) ?? loadWorkspace()
       if (!state) throw new Error('本地工作区尚未加载')
       return perform(input, state)
     },
@@ -132,6 +148,46 @@ export function useRecordExportMutation() {
   return useWorkspaceMutation(
     (input: Omit<Parameters<typeof trpc.request.recordExport.mutate>[0], 'state'>, state) =>
       trpc.request.recordExport.mutate({ ...input, state }),
+  )
+}
+
+export function useImportReceiptBatchMutation() {
+  return useWorkspaceMutation(
+    (
+      input: Omit<Parameters<typeof trpc.receipt.importBatch.mutate>[0], 'state'>,
+      state: WorkspaceState,
+    ) => trpc.receipt.importBatch.mutate({ ...input, state }),
+    { fresh: true },
+  )
+}
+
+export function useRetryReceiptBatchMutation() {
+  return useWorkspaceMutation(
+    (
+      input: Omit<Parameters<typeof trpc.receipt.retryBatch.mutate>[0], 'state'>,
+      state: WorkspaceState,
+    ) => trpc.receipt.retryBatch.mutate({ ...input, state }),
+    { fresh: true },
+  )
+}
+
+export function useDecideReceiptItemMutation() {
+  return useWorkspaceMutation(
+    (
+      input: Omit<Parameters<typeof trpc.receipt.decideItem.mutate>[0], 'state'>,
+      state: WorkspaceState,
+    ) => trpc.receipt.decideItem.mutate({ ...input, state }),
+    { fresh: true },
+  )
+}
+
+export function useDismissReceiptItemMutation() {
+  return useWorkspaceMutation(
+    (
+      input: Omit<Parameters<typeof trpc.receipt.dismissItem.mutate>[0], 'state'>,
+      state: WorkspaceState,
+    ) => trpc.receipt.dismissItem.mutate({ ...input, state }),
+    { fresh: true },
   )
 }
 

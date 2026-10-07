@@ -52,6 +52,10 @@ export const evidenceSchema = z.object({
   uploadedBy: z.string(),
   uploadedAt: z.string(),
   protected: z.literal(true),
+  source: z.enum(['manual', 'partner-receipt']).optional(),
+  receiptBatchId: z.string().optional(),
+  receiptItemId: z.string().optional(),
+  superseded: z.boolean().optional(),
 })
 
 export const commentSchema = z.object({
@@ -80,6 +84,77 @@ export const dataSystemSchema = z.object({
   slaDays: z.number(),
   requestTypes: z.array(requestTypeSchema),
   status: z.enum(['active', 'maintenance', 'retired']),
+})
+
+export const receiptItemStatusSchema = z.enum([
+  'pending',
+  'applied',
+  'review-precondition',
+  'review-diff',
+  'review-concurrent',
+  'review-unmatched',
+  'duplicate-reuse',
+  'kept-existing',
+  'adopted-receipt',
+])
+
+export const receiptBatchStatusSchema = z.enum([
+  'processing',
+  'applied',
+  'review-required',
+  'partial-failed',
+  'duplicate',
+])
+
+export const receiptFieldDiffSchema = z.object({
+  field: z.string(),
+  existing: z.string(),
+  incoming: z.string(),
+})
+
+export const receiptItemSchema = z.object({
+  id: z.string(),
+  lineNo: z.number(),
+  receiptRef: z.string(),
+  fingerprint: z.string(),
+  partnerRef: z.string(),
+  requestId: z.string().optional(),
+  requestCode: z.string(),
+  systemId: z.string().optional(),
+  systemName: z.string(),
+  executedAt: z.string(),
+  outcome: z.enum(['completed', 'partial', 'failed']),
+  resultSummary: z.string(),
+  status: receiptItemStatusSchema,
+  taskId: z.string().optional(),
+  evidenceId: z.string().optional(),
+  reusedFromBatchId: z.string().optional(),
+  reusedFromItemId: z.string().optional(),
+  reviewReason: z.string(),
+  diffs: z.array(receiptFieldDiffSchema),
+  decidedBy: z.string().optional(),
+  decidedAt: z.string().optional(),
+  decisionNote: z.string(),
+  processedAt: z.string().optional(),
+})
+
+export const receiptBatchSchema = z.object({
+  id: z.string(),
+  externalBatchId: z.string(),
+  partnerName: z.string(),
+  receivedAt: z.string(),
+  importedAt: z.string(),
+  importedBy: z.string(),
+  clientToken: z.string(),
+  payloadDigest: z.string(),
+  status: receiptBatchStatusSchema,
+  failureReason: z.string(),
+  checkpointIndex: z.number(),
+  totalLines: z.number(),
+  items: z.array(receiptItemSchema),
+  reimports: z
+    .array(z.object({ clientToken: z.string(), at: z.string(), operator: z.string() }))
+    .optional(),
 })
 
 export const privacyRequestSchema = z.object({
@@ -111,6 +186,7 @@ export const workspaceStateSchema = z.object({
   systems: z.array(dataSystemSchema),
   comments: z.array(commentSchema),
   audit: z.array(auditEntrySchema),
+  receiptBatches: z.array(receiptBatchSchema).default([]),
   revision: z.number(),
 })
 
@@ -215,6 +291,50 @@ export const recordExportInputSchema = z.object({
   operator: z.string(),
 })
 
+export const receiptLineInputSchema = z.object({
+  requestCode: z.string().min(3),
+  systemName: z.string().min(2),
+  executedAt: z.string().min(8),
+  outcome: z.enum(['completed', 'partial', 'failed']),
+  resultSummary: z.string().min(2),
+  receiptRef: z.string().min(2),
+})
+
+export const importReceiptBatchInputSchema = z.object({
+  state: workspaceStateSchema,
+  clientToken: z.string().min(8),
+  externalBatchId: z.string().min(2),
+  partnerName: z.string().min(2),
+  receivedAt: z.string().min(8),
+  lines: z.array(receiptLineInputSchema).min(1),
+  failAfter: z.number().int().nonnegative().optional(),
+  operator: z.string(),
+})
+
+export const retryReceiptBatchInputSchema = z.object({
+  state: workspaceStateSchema,
+  batchId: z.string(),
+  failAfter: z.number().int().nonnegative().optional(),
+  operator: z.string(),
+})
+
+export const receiptDecisionInputSchema = z.object({
+  state: workspaceStateSchema,
+  batchId: z.string(),
+  itemId: z.string(),
+  choice: z.enum(['keep-existing', 'adopt-receipt']),
+  note: z.string().min(2),
+  operator: z.string(),
+})
+
+export const dismissReceiptItemInputSchema = z.object({
+  state: workspaceStateSchema,
+  batchId: z.string(),
+  itemId: z.string(),
+  note: z.string().min(2),
+  operator: z.string(),
+})
+
 export type RequestType = z.infer<typeof requestTypeSchema>
 export type RequestStatus = z.infer<typeof requestStatusSchema>
 export type Region = z.infer<typeof regionSchema>
@@ -225,6 +345,11 @@ export type ReviewComment = z.infer<typeof commentSchema>
 export type AuditEntry = z.infer<typeof auditEntrySchema>
 export type DataSystem = z.infer<typeof dataSystemSchema>
 export type PrivacyRequest = z.infer<typeof privacyRequestSchema>
+export type ReceiptItem = z.infer<typeof receiptItemSchema>
+export type ReceiptBatch = z.infer<typeof receiptBatchSchema>
+export type ReceiptItemStatus = z.infer<typeof receiptItemStatusSchema>
+export type ReceiptBatchStatus = z.infer<typeof receiptBatchStatusSchema>
+export type ReceiptFieldDiff = z.infer<typeof receiptFieldDiffSchema>
 export type WorkspaceState = z.infer<typeof workspaceStateSchema>
 
 export const requestTypeLabels: Record<RequestType, string> = {
@@ -258,3 +383,29 @@ export const systemStatusLabels: Record<DataSystem['status'], string> = {
   maintenance: '维护中',
   retired: '已退役',
 }
+
+export const receiptBatchStatusLabels: Record<ReceiptBatchStatus, string> = {
+  processing: '写入中断',
+  applied: '已对账',
+  'review-required': '待复核',
+  'partial-failed': '部分失败待重试',
+  duplicate: '重复导入沿用原结果',
+}
+
+export const receiptItemStatusLabels: Record<ReceiptItemStatus, string> = {
+  pending: '待写入',
+  applied: '已对账写入',
+  'review-precondition': '复核：前置条件不满足',
+  'review-diff': '复核：与既有结果有差异',
+  'review-concurrent': '复核：同批次并发提交',
+  'review-unmatched': '复核：未匹配任务',
+  'duplicate-reuse': '重复导入沿用原结果',
+  'kept-existing': '人工保留既有记录',
+  'adopted-receipt': '人工采用回执结果',
+}
+
+export const receiptOutcomeLabels = {
+  completed: '已执行',
+  partial: '部分执行',
+  failed: '执行失败',
+} as const

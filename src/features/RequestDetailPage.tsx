@@ -38,7 +38,7 @@ import {
   useDisclosure,
   useToast,
 } from '@chakra-ui/react'
-import { ArrowLeft, FileCheck2, Link2Off, ShieldAlert } from 'lucide-react'
+import { ArrowLeft, FileCheck2, Inbox, Link2Off, ShieldAlert } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
 import { StatusBadge, TypeBadge } from '@/components/StatusBadge'
 import {
@@ -55,6 +55,8 @@ import {
   useWorkspaceQuery,
 } from '@/lib/hooks'
 import {
+  receiptItemStatusLabels,
+  receiptOutcomeLabels,
   regionLabels,
   requestTypeLabels,
   type Region,
@@ -62,6 +64,7 @@ import {
   type WorkflowStep,
 } from '@/lib/schemas'
 import { deadlineState } from '@/services/workflow'
+import { receiptsForRequest } from '@/services/receiptService'
 
 type DialogType =
   | 'edit'
@@ -111,6 +114,11 @@ export function RequestDetailPage({ requestId }: { requestId: string }) {
 
   const comments = useMemo(
     () => data?.comments.filter((comment) => comment.requestId === requestId) ?? [],
+    [data, requestId],
+  )
+
+  const receiptItems = useMemo(
+    () => (data ? receiptsForRequest(data, requestId) : []),
     [data, requestId],
   )
 
@@ -622,8 +630,20 @@ export function RequestDetailPage({ requestId }: { requestId: string }) {
           </Heading>
           <VStack align="stretch" spacing="2">
             {request.evidence.map((evidence) => (
-              <Box key={evidence.id} className="timeline-item">
-                <Text fontWeight="600">{evidence.name}</Text>
+              <Box
+                key={evidence.id}
+                className="timeline-item"
+                opacity={evidence.superseded ? 0.55 : 1}
+              >
+                <HStack>
+                  <Text fontWeight="600">{evidence.name}</Text>
+                  {evidence.source === 'partner-receipt' ? (
+                    <Badge colorScheme="blue">合作方回执</Badge>
+                  ) : null}
+                  {evidence.superseded ? (
+                    <Badge colorScheme="gray">已被人工采用的新回执替代（保留留痕）</Badge>
+                  ) : null}
+                </HStack>
                 <Text mt="1" color="gray.600" fontSize="xs">
                   {evidence.evidenceType} · {evidence.digest}
                 </Text>
@@ -640,6 +660,75 @@ export function RequestDetailPage({ requestId }: { requestId: string }) {
           </VStack>
         </Box>
       </div>
+
+      {receiptItems.length ? (
+        <Box className="panel">
+          <Flex className="panel-title">
+            <HStack>
+              <Inbox size={17} color="#237b78" />
+              <Heading size="sm">合作方回执合并结果</Heading>
+            </HStack>
+            <Badge colorScheme="blue">{receiptItems.length} 条（按批次合并）</Badge>
+          </Flex>
+          <TableContainer>
+            <Table size="sm">
+              <Thead>
+                <Tr>
+                  <Th>回执批次</Th>
+                  <Th>系统</Th>
+                  <Th>回执结论</Th>
+                  <Th>执行时间</Th>
+                  <Th>对账状态</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {receiptItems.map(({ batch, item }) => (
+                    <Tr key={item.id}>
+                      <Td>
+                        <NextLink href="/receipts">
+                          <Text color="brand.600" fontWeight="600">
+                            {batch.externalBatchId}
+                          </Text>
+                        </NextLink>
+                        <Text color="gray.500" fontSize="xs">
+                          {item.receiptRef}
+                        </Text>
+                      </Td>
+                      <Td>{item.systemName}</Td>
+                      <Td>
+                        <Badge
+                          colorScheme={
+                            item.outcome === 'completed'
+                              ? 'green'
+                              : item.outcome === 'partial'
+                                ? 'orange'
+                                : 'red'
+                          }
+                        >
+                          {receiptOutcomeLabels[item.outcome]}
+                        </Badge>
+                        <Text mt="1" fontSize="xs" color="gray.600" maxW="300px">
+                          {item.resultSummary}
+                        </Text>
+                      </Td>
+                      <Td whiteSpace="nowrap" fontSize="xs">
+                        {new Date(item.executedAt).toLocaleString('zh-CN')}
+                      </Td>
+                      <Td>
+                        <Badge>{receiptItemStatusLabels[item.status]}</Badge>
+                        {item.reusedFromBatchId ? (
+                          <Text mt="1" fontSize="xs" color="blue.600">
+                            未重复生成证据/审计
+                          </Text>
+                        ) : null}
+                      </Td>
+                    </Tr>
+                  ))}
+              </Tbody>
+            </Table>
+          </TableContainer>
+        </Box>
+      ) : null}
 
       <div className="two-column">
         <Box className="panel">

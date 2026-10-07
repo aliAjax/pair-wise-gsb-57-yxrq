@@ -385,6 +385,7 @@ export function createInitialState(): WorkspaceState {
         createdAt: '2026-09-28T08:30:00.000Z',
       },
     ],
+    receiptBatches: [],
     revision: 1,
   }
 }

@@ -19,6 +19,7 @@ import {
   ClipboardList,
   Database,
   FileClock,
+  Inbox,
   LayoutDashboard,
   ShieldCheck,
 } from 'lucide-react'
@@ -27,6 +28,7 @@ import { useWorkspaceQuery } from '@/lib/hooks'
 const navItems = [
   { href: '/', label: '运行总览', icon: LayoutDashboard },
   { href: '/requests', label: '请求工作台', icon: ClipboardList },
+  { href: '/receipts', label: '回执批次对账', icon: Inbox },
   { href: '/review', label: '复核队列', icon: ShieldCheck },
   { href: '/systems', label: '系统清单', icon: Database },
   { href: '/audit', label: '审计与导出', icon: FileClock },

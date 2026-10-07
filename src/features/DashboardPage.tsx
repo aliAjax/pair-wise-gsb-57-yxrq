@@ -19,12 +19,12 @@ import {
   Tr,
   VStack,
 } from '@chakra-ui/react'
-import { AlertTriangle, ArrowRight, Clock3, Database, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Clock3, Database, Inbox, ShieldCheck } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
 import { StatusBadge, TypeBadge } from '@/components/StatusBadge'
 import { useWorkspaceQuery } from '@/lib/hooks'
 import { deadlineState } from '@/services/workflow'
-import { regionLabels } from '@/lib/schemas'
+import { receiptBatchStatusLabels, regionLabels, type ReceiptItem } from '@/lib/schemas'
 
 export function DashboardPage() {
   const { data, isLoading, error } = useWorkspaceQuery()
@@ -54,6 +54,14 @@ export function DashboardPage() {
     (left, right) => new Date(left.dueAt).getTime() - new Date(right.dueAt).getTime(),
   )
 
+  const receiptBatches = data.receiptBatches ?? []
+  const receiptItems: ReceiptItem[] = receiptBatches.flatMap((batch) => batch.items)
+  const receiptReviewCount = receiptItems.filter((item) =>
+    ['review-precondition', 'review-diff', 'review-concurrent', 'review-unmatched'].includes(item.status),
+  ).length
+  const receiptReuseCount = receiptItems.filter((item) => item.status === 'duplicate-reuse').length
+  const receiptPendingBatches = receiptBatches.filter((batch) => batch.status === 'partial-failed')
+
   return (
     <Box>
       <PageHeader
@@ -61,6 +69,11 @@ export function DashboardPage() {
         description="汇总请求期限、身份核验、跨系统执行、冲突复核和操作审计。"
         actions={
           <>
+            <NextLink href="/receipts">
+              <Button variant="outline" leftIcon={<Inbox size={15} />}>
+                回执批次对账
+              </Button>
+            </NextLink>
             <NextLink href="/review">
               <Button variant="outline">查看复核队列</Button>
             </NextLink>
@@ -216,6 +229,74 @@ export function DashboardPage() {
             </Flex>
           </VStack>
         </Box>
+      </Box>
+
+      <Box className="panel">
+        <Flex className="panel-title">
+          <HStack>
+            <Inbox size={17} color="#237b78" />
+            <Heading size="sm">合作方回执批次对账</Heading>
+          </HStack>
+          <NextLink href="/receipts">
+            <Button size="xs" variant="ghost" rightIcon={<ArrowRight size={14} />}>
+              回执批次对账台
+            </Button>
+          </NextLink>
+        </Flex>
+        {receiptBatches.length ? (
+          <>
+            <HStack spacing="6" mb="3">
+              <Text fontSize="sm" color="gray.600">
+                已导入批次 <b>{receiptBatches.length}</b>
+              </Text>
+              <Text fontSize="sm" color="orange.700">
+                写入中断 <b>{receiptPendingBatches.length}</b>
+              </Text>
+              <Text fontSize="sm" color="red.700">
+                差异/并发待复核 <b>{receiptReviewCount}</b>
+              </Text>
+              <Text fontSize="sm" color="blue.700">
+                重复导入沿用原结果 <b>{receiptReuseCount}</b>
+              </Text>
+            </HStack>
+            <TableContainer>
+              <Table size="sm">
+                <Thead>
+                  <Tr>
+                    <Th>批次号</Th>
+                    <Th>合作方</Th>
+                    <Th>状态</Th>
+                    <Th>合并到的请求</Th>
+                    <Th>导入时间</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {receiptBatches.slice(0, 5).map((batch) => (
+                    <Tr key={batch.id}>
+                      <Td>
+                        <NextLink href="/receipts">
+                          <Text color="brand.600" fontWeight="600">
+                            {batch.externalBatchId}
+                          </Text>
+                        </NextLink>
+                      </Td>
+                      <Td>{batch.partnerName}</Td>
+                      <Td>{receiptBatchStatusLabels[batch.status]}</Td>
+                      <Td>
+                        {[...new Set(batch.items.map((item) => item.requestCode))].join('、')}
+                      </Td>
+                      <Td>{new Date(batch.importedAt).toLocaleString('zh-CN')}</Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            </TableContainer>
+          </>
+        ) : (
+          <Text color="gray.500" fontSize="sm">
+            暂无离线回执批次；导入后回执会按系统任务匹配请求，同一批结果在请求详情、总览和处理包中合并展示。
+          </Text>
+        )}
       </Box>
 
       <Box className="panel">

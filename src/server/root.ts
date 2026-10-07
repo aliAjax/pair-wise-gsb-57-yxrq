@@ -13,6 +13,12 @@ import {
   taskAction,
   verifyIdentity,
 } from '@/services/requestService'
+import {
+  decideReceiptItem,
+  dismissReceiptItem,
+  importReceiptBatch,
+  retryReceiptBatch,
+} from '@/services/receiptService'
 import { createInitialState } from '@/services/mockData'
 import {
   assignTaskInputSchema,
@@ -20,11 +26,15 @@ import {
   commentInputSchema,
   conflictInputSchema,
   createRequestInputSchema,
+  dismissReceiptItemInputSchema,
   evidenceInputSchema,
   extendRequestInputSchema,
   identityInputSchema,
+  importReceiptBatchInputSchema,
+  receiptDecisionInputSchema,
   recordExportInputSchema,
   resolveConflictInputSchema,
+  retryReceiptBatchInputSchema,
   saveRequestInputSchema,
   taskActionInputSchema,
 } from '@/lib/schemas'
@@ -165,6 +175,60 @@ export const appRouter = t.router({
       .mutation(({ input }) =>
         execute(() =>
           recordExport(input.state, input.scope, input.count, input.operator),
+        ),
+      ),
+  }),
+  receipt: t.router({
+    importBatch: publicProcedure
+      .input(importReceiptBatchInputSchema)
+      .mutation(({ input }) =>
+        execute(() =>
+          importReceiptBatch(
+            input.state,
+            {
+              clientToken: input.clientToken,
+              externalBatchId: input.externalBatchId,
+              partnerName: input.partnerName,
+              receivedAt: input.receivedAt,
+              lines: input.lines,
+              failAfter: input.failAfter,
+            },
+            input.operator,
+          ),
+        ),
+      ),
+    retryBatch: publicProcedure
+      .input(retryReceiptBatchInputSchema)
+      .mutation(({ input }) =>
+        execute(() =>
+          retryReceiptBatch(input.state, input.batchId, input.failAfter, input.operator),
+        ),
+      ),
+    decideItem: publicProcedure
+      .input(receiptDecisionInputSchema)
+      .mutation(({ input }) =>
+        execute(() =>
+          decideReceiptItem(
+            input.state,
+            input.batchId,
+            input.itemId,
+            input.choice,
+            input.note,
+            input.operator,
+          ),
+        ),
+      ),
+    dismissItem: publicProcedure
+      .input(dismissReceiptItemInputSchema)
+      .mutation(({ input }) =>
+        execute(() =>
+          dismissReceiptItem(
+            input.state,
+            input.batchId,
+            input.itemId,
+            input.note,
+            input.operator,
+          ),
         ),
       ),
   }),
