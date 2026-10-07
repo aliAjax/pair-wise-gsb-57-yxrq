@@ -19,8 +19,12 @@ import {
   Tr,
   VStack,
 } from '@chakra-ui/react'
-import { AlertTriangle, ArrowRight, Clock3, Database, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Clock3, Database, Inbox, ShieldCheck } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
+import {
+  ReceiptBatchStatusBadge,
+  ReceiptItemStatusBadge,
+} from '@/components/ReceiptBadges'
 import { StatusBadge, TypeBadge } from '@/components/StatusBadge'
 import { useWorkspaceQuery } from '@/lib/hooks'
 import { deadlineState } from '@/services/workflow'
@@ -59,8 +63,13 @@ export function DashboardPage() {
       <PageHeader
         title="履约运行总览"
         description="汇总请求期限、身份核验、跨系统执行、冲突复核和操作审计。"
-        actions={
+                actions={
           <>
+            <NextLink href="/receipts">
+              <Button variant="outline" leftIcon={<Inbox size={15} />}>
+                回执批次对账
+              </Button>
+            </NextLink>
             <NextLink href="/review">
               <Button variant="outline">查看复核队列</Button>
             </NextLink>
@@ -216,6 +225,59 @@ export function DashboardPage() {
             </Flex>
           </VStack>
         </Box>
+      </Box>
+
+      <Box className="panel">
+        <Flex className="panel-title">
+          <HStack>
+            <Inbox size={17} color="#237b78" />
+            <Heading size="sm">回执批次对账</Heading>
+          </HStack>
+          <NextLink href="/receipts">
+            <Button size="xs" variant="ghost" rightIcon={<ArrowRight size={14} />}>
+              导入或复核批次
+            </Button>
+          </NextLink>
+        </Flex>
+        {data.receiptBatches.length ? (
+          <VStack align="stretch" spacing="3">
+            {data.receiptBatches.slice(0, 3).map((batch) => {
+              const statuses = [...new Set(batch.items.map((item) => item.status))]
+              return (
+                <Flex key={batch.id} gap="14px" align="flex-start" className="summary-box" mb="0">
+                  <Box flex="1">
+                    <HStack mb="1">
+                      <Text fontWeight="600">{batch.batchCode}</Text>
+                      <ReceiptBatchStatusBadge status={batch.status} />
+                      {batch.concurrent ? <Badge colorScheme="purple">后到提交</Badge> : null}
+                    </HStack>
+                    <Text color="gray.600" fontSize="sm">
+                      {batch.source} · {batch.items.length} 条回执 · 尝试 {batch.attempts} 次 ·{' '}
+                      {new Date(batch.importedAt).toLocaleString('zh-CN')}
+                    </Text>
+                    <HStack mt="2" spacing="2">
+                      {statuses.map((status) => (
+                        <ReceiptItemStatusBadge key={status} status={status} />
+                      ))}
+                    </HStack>
+                  </Box>
+                  {batch.items.some((item) => item.status === 'conflict' || item.status === 'failed') ||
+                  (batch.concurrent && !batch.resolvedAt) ? (
+                    <NextLink href="/receipts">
+                      <Button size="xs" colorScheme="red" variant="outline">
+                        待处理
+                      </Button>
+                    </NextLink>
+                  ) : null}
+                </Flex>
+              )
+            })}
+          </VStack>
+        ) : (
+          <Text color="gray.500" fontSize="sm">
+            暂无导入的回执批次。同一回执再次导入沿用原结果，不重复生成证据、审计或延期；并发提交先到者写入，后到者进入复核。
+          </Text>
+        )}
       </Box>
 
       <Box className="panel">

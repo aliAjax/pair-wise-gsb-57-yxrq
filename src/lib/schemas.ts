@@ -106,12 +106,115 @@ export const privacyRequestSchema = z.object({
   ),
 })
 
+export const receiptResultSchema = z.enum(['executed', 'rejected', 'partial'])
+
+export const receiptItemStatusSchema = z.enum([
+  'pending',
+  'applied',
+  'duplicate',
+  'conflict',
+  'failed',
+  'kept-existing',
+  'accepted-incoming',
+])
+
+export const receiptBatchStatusSchema = z.enum(['applied', 'partial', 'review-required', 'duplicate'])
+
+export const receiptResolutionSchema = z.enum(['keep-existing', 'accept-incoming'])
+
+export const receiptDiffSchema = z.object({
+  field: z.string(),
+  label: z.string(),
+  existing: z.string(),
+  incoming: z.string(),
+})
+
+export const receiptItemSchema = z.object({
+  id: z.string(),
+  receiptRef: z.string(),
+  requestCode: z.string(),
+  systemId: z.string(),
+  result: receiptResultSchema,
+  executedAt: z.string(),
+  message: z.string(),
+  fingerprint: z.string(),
+  status: receiptItemStatusSchema,
+  matchedRequestId: z.string().optional(),
+  matchedTaskId: z.string().optional(),
+  diffs: z.array(receiptDiffSchema),
+  errorReason: z.string(),
+  processedAt: z.string().optional(),
+  resolvedBy: z.string().optional(),
+  resolvedAt: z.string().optional(),
+  resolutionNote: z.string().optional(),
+})
+
+export const receiptBatchSchema = z.object({
+  id: z.string(),
+  batchCode: z.string(),
+  source: z.string(),
+  importedBy: z.string(),
+  importedAt: z.string(),
+  digest: z.string(),
+  status: receiptBatchStatusSchema,
+  concurrent: z.boolean(),
+  concurrentOf: z.string().optional(),
+  attempts: z.number(),
+  lastAttemptAt: z.string(),
+  items: z.array(receiptItemSchema),
+  resolvedBy: z.string().optional(),
+  resolvedAt: z.string().optional(),
+  resolutionNote: z.string().optional(),
+})
+
 export const workspaceStateSchema = z.object({
   requests: z.array(privacyRequestSchema),
   systems: z.array(dataSystemSchema),
   comments: z.array(commentSchema),
   audit: z.array(auditEntrySchema),
+  receiptBatches: z.array(receiptBatchSchema).default([]),
   revision: z.number(),
+})
+
+export const receiptItemInputSchema = z.object({
+  requestCode: z.string().min(3),
+  systemId: z.string().min(2),
+  result: receiptResultSchema,
+  executedAt: z.string(),
+  receiptRef: z.string().min(2),
+  message: z.string(),
+})
+
+export const importReceiptsInputSchema = z.object({
+  state: workspaceStateSchema,
+  batchCode: z.string().min(2),
+  source: z.string().min(2),
+  operator: z.string().default('客服专员'),
+  failAt: z.number().int().min(-1).default(-1),
+  items: z.array(receiptItemInputSchema).min(1),
+})
+
+export const retryReceiptBatchInputSchema = z.object({
+  state: workspaceStateSchema,
+  batchId: z.string(),
+  operator: z.string(),
+})
+
+export const resolveReceiptItemInputSchema = z.object({
+  state: workspaceStateSchema,
+  batchId: z.string(),
+  itemId: z.string(),
+  resolution: receiptResolutionSchema,
+  note: z.string().min(2),
+  operator: z.string(),
+})
+
+export const resolveConcurrentBatchInputSchema = z.object({
+  state: workspaceStateSchema,
+  batchId: z.string(),
+  resolution: z.enum(['keep-first', 'adopt']),
+  note: z.string().min(2),
+  operator: z.string(),
 })
 
 export const saveRequestInputSchema = z.object({
@@ -226,6 +329,13 @@ export type AuditEntry = z.infer<typeof auditEntrySchema>
 export type DataSystem = z.infer<typeof dataSystemSchema>
 export type PrivacyRequest = z.infer<typeof privacyRequestSchema>
 export type WorkspaceState = z.infer<typeof workspaceStateSchema>
+export type ReceiptBatch = z.infer<typeof receiptBatchSchema>
+export type ReceiptItem = z.infer<typeof receiptItemSchema>
+export type ReceiptResult = z.infer<typeof receiptResultSchema>
+export type ReceiptItemStatus = z.infer<typeof receiptItemStatusSchema>
+export type ReceiptBatchStatus = z.infer<typeof receiptBatchStatusSchema>
+export type ReceiptDiff = z.infer<typeof receiptDiffSchema>
+export type ReceiptResolution = z.infer<typeof receiptResolutionSchema>
 
 export const requestTypeLabels: Record<RequestType, string> = {
   access: '访问',
@@ -257,4 +367,27 @@ export const systemStatusLabels: Record<DataSystem['status'], string> = {
   active: '在用',
   maintenance: '维护中',
   retired: '已退役',
+}
+
+export const receiptResultLabels: Record<ReceiptResult, string> = {
+  executed: '已执行',
+  rejected: '拒绝执行',
+  partial: '部分执行',
+}
+
+export const receiptItemStatusLabels: Record<ReceiptItemStatus, string> = {
+  pending: '待写入',
+  applied: '已对账写入',
+  duplicate: '重复回执沿用原结果',
+  conflict: '差异待人工选择',
+  failed: '写入失败',
+  'kept-existing': '人工保留原记录',
+  'accepted-incoming': '人工采用新回执',
+}
+
+export const receiptBatchStatusLabels: Record<ReceiptBatchStatus, string> = {
+  applied: '全部写入完成',
+  partial: '断点保留·待重试',
+  'review-required': '并发/差异复核中',
+  duplicate: '重复批次未重复生成',
 }

@@ -135,4 +135,32 @@ export function useRecordExportMutation() {
   )
 }
 
+export function useImportReceiptsMutation() {
+  return useWorkspaceMutation(
+    (input: Omit<Parameters<typeof trpc.receipt.import.mutate>[0], 'state'>, state) =>
+      trpc.receipt.import.mutate({ ...input, state }),
+  )
+}
+
+export function useRetryReceiptBatchMutation() {
+  return useWorkspaceMutation(
+    (input: Omit<Parameters<typeof trpc.receipt.retry.mutate>[0], 'state'>, state) =>
+      trpc.receipt.retry.mutate({ ...input, state }),
+  )
+}
+
+export function useResolveReceiptItemMutation() {
+  return useWorkspaceMutation(
+    (input: Omit<Parameters<typeof trpc.receipt.resolveItem.mutate>[0], 'state'>, state) =>
+      trpc.receipt.resolveItem.mutate({ ...input, state }),
+  )
+}
+
+export function useResolveConcurrentBatchMutation() {
+  return useWorkspaceMutation(
+    (input: Omit<Parameters<typeof trpc.receipt.resolveConcurrent.mutate>[0], 'state'>, state) =>
+      trpc.receipt.resolveConcurrent.mutate({ ...input, state }),
+  )
+}
+
 export type { PrivacyRequest }

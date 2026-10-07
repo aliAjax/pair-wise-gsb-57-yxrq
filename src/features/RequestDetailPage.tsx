@@ -40,6 +40,7 @@ import {
 } from '@chakra-ui/react'
 import { ArrowLeft, FileCheck2, Link2Off, ShieldAlert } from 'lucide-react'
 import { PageHeader } from '@/components/PageHeader'
+import { RequestReceiptPanel } from '@/components/RequestReceiptPanel'
 import { StatusBadge, TypeBadge } from '@/components/StatusBadge'
 import {
   useAddCommentMutation,
@@ -640,6 +641,8 @@ export function RequestDetailPage({ requestId }: { requestId: string }) {
           </VStack>
         </Box>
       </div>
+
+      <RequestReceiptPanel requestId={requestId} />
 
       <div className="two-column">
         <Box className="panel">

@@ -212,9 +212,28 @@ export function ReviewPage() {
                           <Badge colorScheme="orange">疑似重复 {request.duplicateOf}</Badge>
                         ) : null}
                         {request.conflicts.map((conflict, index) => (
-                          <Text key={`${conflict}-${index}`} fontSize="sm">
-                            {conflict}
-                          </Text>
+                          <VStack key={`${conflict}-${index}`} align="stretch" spacing="1">
+                            <Text fontSize="sm">{conflict}</Text>
+                            {conflict.includes('【并发回执') ? (
+                              <Button
+                                size="xs"
+                                variant="link"
+                                colorScheme="purple"
+                                onClick={() => router.push('/receipts')}
+                              >
+                                处理并发回执批次
+                              </Button>
+                            ) : conflict.includes('【回执对账') ? (
+                              <Button
+                                size="xs"
+                                variant="link"
+                                colorScheme="red"
+                                onClick={() => router.push(`/requests/${request.id}`)}
+                              >
+                                对比两边回执差异并选择
+                              </Button>
+                            ) : null}
+                          </VStack>
                         ))}
                       </VStack>
                     </Td>
@@ -253,7 +272,16 @@ export function ReviewPage() {
                             通过身份
                           </Button>
                         ) : null}
-                        {request.conflicts.length ? (
+                        {request.conflicts.some((conflict) => conflict.includes('【回执')) ? (
+                          <Button
+                            size="xs"
+                            variant="link"
+                            colorScheme="red"
+                            onClick={() => router.push('/receipts')}
+                          >
+                            回执对账复核
+                          </Button>
+                        ) : request.conflicts.length ? (
                           <Button
                             size="xs"
                             variant="link"

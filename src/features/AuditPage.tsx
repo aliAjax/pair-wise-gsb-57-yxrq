@@ -112,6 +112,45 @@ export function AuditPage() {
         conflicts: request.conflicts,
         resultSummary: request.resultSummary,
         closureReason: request.closureReason,
+        receiptReconciliation: workspace.receiptBatches
+          .flatMap((batch) =>
+            batch.items
+              .filter((item) => item.matchedRequestId === request.id)
+              .map((item) => ({
+                batchCode: batch.batchCode,
+                batchDigest: batch.digest,
+                concurrent: batch.concurrent,
+                receiptRef: item.receiptRef,
+                system:
+                  workspace.systems.find((system) => system.id === item.systemId)?.name ??
+                  item.systemId,
+                result: item.result,
+                executedAt: item.executedAt,
+                status: item.status,
+                message: item.message,
+                resolutionNote: item.resolutionNote ?? '',
+              })),
+          ),
+      })),
+      receiptBatches: workspace.receiptBatches.map((batch) => ({
+        batchCode: batch.batchCode,
+        source: batch.source,
+        importedBy: batch.importedBy,
+        importedAt: batch.importedAt,
+        digest: batch.digest,
+        status: batch.status,
+        concurrent: batch.concurrent,
+        attempts: batch.attempts,
+        items: batch.items.map((item) => ({
+          requestCode: item.requestCode,
+          systemId: item.systemId,
+          receiptRef: item.receiptRef,
+          result: item.result,
+          executedAt: item.executedAt,
+          status: item.status,
+          message: item.message,
+          errorReason: item.errorReason,
+        })),
       })),
       audit: auditEntries,
     }

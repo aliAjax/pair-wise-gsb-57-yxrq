@@ -13,6 +13,12 @@ import {
   taskAction,
   verifyIdentity,
 } from '@/services/requestService'
+import {
+  importReceipts,
+  resolveConcurrentBatch,
+  resolveReceiptItem,
+  retryReceiptBatch,
+} from '@/services/receiptService'
 import { createInitialState } from '@/services/mockData'
 import {
   assignTaskInputSchema,
@@ -23,8 +29,12 @@ import {
   evidenceInputSchema,
   extendRequestInputSchema,
   identityInputSchema,
+  importReceiptsInputSchema,
   recordExportInputSchema,
+  resolveConcurrentBatchInputSchema,
   resolveConflictInputSchema,
+  resolveReceiptItemInputSchema,
+  retryReceiptBatchInputSchema,
   saveRequestInputSchema,
   taskActionInputSchema,
 } from '@/lib/schemas'
@@ -165,6 +175,53 @@ export const appRouter = t.router({
       .mutation(({ input }) =>
         execute(() =>
           recordExport(input.state, input.scope, input.count, input.operator),
+        ),
+      ),
+  }),
+  receipt: t.router({
+    import: publicProcedure
+      .input(importReceiptsInputSchema)
+      .mutation(({ input }) =>
+        execute(() =>
+          importReceipts(input.state, {
+            batchCode: input.batchCode,
+            source: input.source,
+            operator: input.operator,
+            failAt: input.failAt,
+            items: input.items,
+          }),
+        ),
+      ),
+    retry: publicProcedure
+      .input(retryReceiptBatchInputSchema)
+      .mutation(({ input }) =>
+        execute(() => retryReceiptBatch(input.state, input.batchId, input.operator)),
+      ),
+    resolveItem: publicProcedure
+      .input(resolveReceiptItemInputSchema)
+      .mutation(({ input }) =>
+        execute(() =>
+          resolveReceiptItem(
+            input.state,
+            input.batchId,
+            input.itemId,
+            input.resolution,
+            input.note,
+            input.operator,
+          ),
+        ),
+      ),
+    resolveConcurrent: publicProcedure
+      .input(resolveConcurrentBatchInputSchema)
+      .mutation(({ input }) =>
+        execute(() =>
+          resolveConcurrentBatch(
+            input.state,
+            input.batchId,
+            input.resolution,
+            input.note,
+            input.operator,
+          ),
         ),
       ),
   }),
